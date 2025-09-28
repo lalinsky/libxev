@@ -91,7 +91,7 @@ fn FileStream(comptime xev: type) type {
             ) xev.CallbackAction,
         ) void {
             switch (buf) {
-                inline .slice, .array => {
+                inline .slice, .array, .vectors => {
                     c.* = .{
                         .op = .{
                             .pread = .{
@@ -280,7 +280,7 @@ fn FileStream(comptime xev: type) type {
             offset: u64,
         ) void {
             switch (buf) {
-                inline .slice, .array => {
+                inline .slice, .array, .vectors => {
                     c.* = .{
                         .op = .{
                             .pwrite = .{
