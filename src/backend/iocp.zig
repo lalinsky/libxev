@@ -1420,7 +1420,29 @@ pub const ReadBuffer = union(enum) {
     /// for future fields.
     array: [32]u8,
 
-    // TODO: future will have vectors
+    /// Read into multiple buffers using vectored I/O.
+    /// On Windows, this uses WSARecv with WSABUF arrays.
+    vectors: struct {
+        data: [2]windows.ws2_32.WSABUF,
+        len: usize,
+    },
+
+    /// Create a ReadBuffer from a slice of byte slices, automatically
+    /// choosing the optimal representation (slice for single buffer,
+    /// vectors for multiple buffers).
+    pub fn fromSlices(slices: [][]u8) ReadBuffer {
+        if (slices.len == 0) return .{ .slice = &.{} };
+        if (slices.len == 1) return .{ .slice = slices[0] };
+
+        // Convert to Windows-specific WSABUF format for vectored I/O
+        // Note: WSABUF has different field order than iovec (len, buf vs base, len)
+        var data: [2]windows.ws2_32.WSABUF = undefined;
+        const len = @min(slices.len, 2);
+        for (slices[0..len], 0..) |slice, i| {
+            data[i] = .{ .len = @intCast(slice.len), .buf = slice.ptr };
+        }
+        return .{ .vectors = .{ .data = data, .len = len } };
+    }
 };
 
 /// WriteBuffer are the various options for writing.
@@ -1434,7 +1456,29 @@ pub const WriteBuffer = union(enum) {
         len: usize,
     },
 
-    // TODO: future will have vectors
+    /// Write from multiple buffers using vectored I/O.
+    /// On Windows, this uses WSASend with WSABUF arrays.
+    vectors: struct {
+        data: [2]windows.ws2_32.WSABUF,
+        len: usize,
+    },
+
+    /// Create a WriteBuffer from a slice of byte slices, automatically
+    /// choosing the optimal representation (slice for single buffer,
+    /// vectors for multiple buffers).
+    pub fn fromSlices(slices: []const []const u8) WriteBuffer {
+        if (slices.len == 0) return .{ .slice = "" };
+        if (slices.len == 1) return .{ .slice = slices[0] };
+
+        // Convert to Windows-specific WSABUF format for vectored I/O
+        // Note: WSABUF has different field order than iovec (len, buf vs base, len)
+        var data: [2]windows.ws2_32.WSABUF = undefined;
+        const len = @min(slices.len, 2);
+        for (slices[0..len], 0..) |slice, i| {
+            data[i] = .{ .len = @intCast(slice.len), .buf = slice.ptr };
+        }
+        return .{ .vectors = .{ .data = data, .len = len } };
+    }
 };
 
 /// Timer that is inserted into the heap.
